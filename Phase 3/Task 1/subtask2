@@ -1,0 +1,118 @@
+import cv2
+import numpy as np
+
+
+class ShapeDetector:
+
+    def __init__(self, video_path):
+        self.video_path = video_path
+        self.cap = cv2.VideoCapture(video_path)
+
+    def detect_shapes(self, frame):
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        # Red color mask
+        lower_red = np.array([0, 100, 100])
+        upper_red = np.array([10, 255, 255])
+
+        red_mask = cv2.inRange(hsv, lower_red,upper_red)
+
+        # Blue color mask
+        lower_blue = np.array([90, 100, 100])
+        upper_blue = np.array([130, 255, 255])
+
+        blue_mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+        # Find red contours
+        red_contours, _ = cv2.findContours( red_mask,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE )
+
+        # Detect red shapes
+        for contour in red_contours:
+
+            area = cv2.contourArea(contour)
+
+            if area < 500:
+                continue
+
+            perimeter = cv2.arcLength(contour, True)
+
+            approx = cv2.approxPolyDP(contour,  0.04 * perimeter, True)
+
+            vertices = len(approx)
+
+            if vertices > 4:
+                shape = "Red Circle"
+            else:
+                continue
+
+            cv2.drawContours(frame, [contour], -1, (0, 0, 255), 3 )
+
+            x, y, w, h = cv2.boundingRect(contour)
+
+            cv2.putText(frame,shape,(x, y - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2 )
+
+        # Find blue contours
+        blue_contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE )
+
+        # Detect blue shapes
+        for contour in blue_contours:
+
+            area = cv2.contourArea(contour)
+
+            if area < 500:
+                continue
+
+            perimeter = cv2.arcLength(contour, True)
+
+            approx = cv2.approxPolyDP( contour, 0.04 * perimeter, True)
+
+            vertices = len(approx)
+
+            if vertices == 4:
+
+                x, y, w, h = cv2.boundingRect(approx)
+
+                aspect_ratio = w / float(h)
+
+                if 0.90 <= aspect_ratio <= 1.10:
+                    shape = "Blue Square"
+                else:
+                    continue
+
+            else:
+                continue
+
+            cv2.drawContours( frame, [contour], -1,(255, 0, 0),3)
+
+            x, y, w, h = cv2.boundingRect(contour)
+
+            cv2.putText(frame, shape,(x, y - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.7,(255, 0, 0),2)
+
+        return frame
+
+    def run(self):
+
+        while True:
+
+            ret, frame = self.cap.read()
+
+            if not ret:
+                break
+
+            frame = self.detect_shapes(frame)
+
+            cv2.imshow("Red Circles and Blue Squares",frame)
+
+            if cv2.waitKey(1) == 27:
+                break
+
+        self.cap.release()
+        cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+
+    detector = ShapeDetector("thrown_shapes_noisy_30s.mp4")
+
+    detector.run()
